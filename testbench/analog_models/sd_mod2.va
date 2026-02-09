@@ -1,0 +1,82 @@
+//
+// Questa ADMS model for ECHIP_modulator sd_mod2 adms_vlogams
+// Author: Aikaterini Papadopoulou (katerina@lbl.gov)
+// Code based on the Designer's Guide Community publication titled 
+// "Data Converters", authored by Monte Mar. 
+//
+`include "constants.h"
+`include "disciplines.h"
+
+module sd_mod2(dout, doutb, vbias1, vbias2, vcm, vdd, vrefn, vrefp, vss, in, p1, p2, rst);
+
+// I/O SIGNALS
+
+input in;  // Analog input, swing must be less than modulator fullscale Vfs
+electrical in;
+
+input p1, p2, rst;  // Non-overlapping clocks and reset signal
+wire p1, p2, rst;
+
+output dout, doutb;  // Modulator output and its complement
+reg dout, doutb;
+
+//inout vcm, vrefp, vrefn; // vrefp = vcm + Vfs/2, vrefn = vcm - Vfs/2
+input vcm, vrefp, vrefn; // vrefp = vcm + Vfs/2, vrefn = vcm - Vfs/2
+electrical vcm, vrefp, vrefn;
+
+//inout [1:4] vbias1, vbias2; // Amplifier bias (not modeled) 
+input [1:4] vbias1, vbias2; // Amplifier bias (not modeled) 
+electrical [1:4] vbias1, vbias2;
+
+//inout vdd, vss;  // Supplies (not modeled)
+input vdd, vss;  // Supplies (not modeled)
+electrical vdd, vss;
+
+// PARAMETERS
+parameter real c1 = 160f from (0:inf); // Sampling capacitor in stage 1
+parameter real c2 = 880f from (0:inf); // Integrating capacitor in stage 1
+parameter real c3 = 60f from (0:inf);  // Signal sampling capacitor in stage 2
+parameter real c4 = 40f from (0:inf);  // Reference sampling capcitor in stage 2
+parameter real c5 = 100f from (0:inf);  // Integrating capacitor in stage 2
+parameter real aol1 = 1000; // Open-loop gain of amplifier 1
+parameter real aol2 = 1000; // Open-loop gain of amplifier 2
+
+// LOCAL PARAMETERS
+real x1, x2, qs1, qs2, dacval;
+real coeff11 = (aol1 + 1.0)/(aol1 + (c1/c2) +1.0);
+real coeff12 = (aol1)/(aol1 + (c1/c2) +1.0);
+real coeff13 = (aol1)/(aol1 + (c1/c2) +1.0);
+real coeff21 = (aol2 + 1.0)/(aol2 + (c3/c5) +1.0);
+real coeff22 = (aol2)/(aol2 + (c3/c5) +1.0);
+real coeff23 = (aol2)/(aol2 + (c4/c5) +1.0);
+
+//MODEL
+initial begin
+	qs1 = 0.0; qs2 = 0.0;
+	x1 = 0.0; x2 = 0.0;	
+	dacval = V(vrefn) - V(vcm);
+end
+
+always @(negedge(p1)) begin
+	qs1 = coeff12*c1*(V(in)-V(vcm));
+	qs2 = coeff22*c3*(x1);
+end
+
+always @(negedge(p2)) begin
+	x1 = (qs1 + coeff11*c2*x1 - coeff13*dacval*c1)/c2;
+	x2 = (qs2 + coeff21*c5*x2 - coeff23*dacval*c4)/c5;
+end
+
+always @(posedge(p2)) begin
+	if (x2 > 0.0) begin
+		dout = 1;
+		dacval = V(vrefp) - V(vcm);
+	end else begin
+		dout = 0;
+		dacval = V(vrefn) - V(vcm);
+	end
+end
+
+analog begin
+end
+endmodule
