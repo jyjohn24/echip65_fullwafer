@@ -583,7 +583,7 @@ out_int[14:0] corresponds to inC0[0] and out_int[895:882] corresponds to inC0[63
 */
 genvar j;
 generate
-    for (j=0; j<NUM_FILTERS_PERCOLUMN; j=j+1) begin : FILTERS_COL1
+    for (j=0; j<NUM_FILTERS_PERCOLUMN; j=j+1) begin : FILTERS_COL0
         cic3_echip65_14b
             cic3_echip65_14b (
                 .out                    (out_int_C1[(j+1)*14-1:j*14]), //14-bit digital output for filter
@@ -596,7 +596,7 @@ endgenerate
 
 genvar l;
 generate
-    for (l=0; l<NUM_FILTERS_PERCOLUMN; l=l+1) begin : FILTERS_COL2
+    for (l=0; l<NUM_FILTERS_PERCOLUMN; l=l+1) begin : FILTERS_COL1
         cic3_echip65_14b
             cic3_echip65_14b (
                 .out                    (out_int_C2[(l+1)*14-1:l*14]), //14-bit digital output for filter
@@ -609,7 +609,7 @@ endgenerate
 
 genvar m;
 generate
-    for (m=0; m<NUM_FILTERS_PERCOLUMN; m=m+1) begin : FILTERS_COL3
+    for (m=0; m<NUM_FILTERS_PERCOLUMN; m=m+1) begin : FILTERS_COL2
         cic3_echip65_14b
             cic3_echip65_14b (
                 .out                    (out_int_C3[(m+1)*14-1:m*14]), //14-bit digital output for filter
@@ -622,7 +622,7 @@ endgenerate
 
 genvar n;
 generate
-    for (n=0; n<NUM_FILTERS_PERCOLUMN; n=n+1) begin : FILTERS_COL4
+    for (n=0; n<NUM_FILTERS_PERCOLUMN; n=n+1) begin : FILTERS_COL3
         cic3_echip65_14b
             cic3_echip65_14b (
                 .out                    (out_int_C4[(n+1)*14-1:n*14]), //14-bit digital output for filter
