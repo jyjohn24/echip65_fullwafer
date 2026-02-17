@@ -27,6 +27,7 @@ module cic3_64x4_selfcheck_tb();
     // Stimulus signals
     real  sine_input;
     logic [NUM_FILTERS-1:0] modulator_outputs;
+    logic [NUM_FILTERS-1:0] mod_out_Delayed; 
     logic golden_modulator_out;
     
     // DUT outputs (collected into 2D array for easier checking)
@@ -41,20 +42,29 @@ module cic3_64x4_selfcheck_tb();
     logic test_complete;
     logic scoreboard_enable;
     
-    // Divided clock for synchronization
+    // clocks with delays
     logic divided_clk;
     int clk_counter;
-    
+
+    logic enable;
+    logic phi1;
+    logic phi1_delayed;
+    logic phi2;
+    logic phi2_delayed;
+    logic phi1F;
+    logic [(NUM_FILTERS-1):0] phi1F_delayed;
+    logic sclk;
+
+
     // Include task library
     `include "tasks/cic3_64x4_tasks.sv"
     
     /////////////////////////////////////////////////////////////////////////////////////////////
-    // Clock Generation - 100 MHz 
-    // TP: Update this is realistic clock using echip_clk_generator as reference
+    // Clock Generation - 81.92 MHz (12.207 ns period) 
     always #(CLK_PERIOD_NS/2) clk = ~clk;
     
     // Clock counter and divided clock generation
-    always_ff @(posedge clk or negedge reset_n) begin
+    always_ff @(posedge phi1 or negedge reset_n) begin
         if (!reset_n)
             clk_counter <= 0;
         else
@@ -62,13 +72,47 @@ module cic3_64x4_selfcheck_tb();
     end
     
     assign divided_clk = clk_counter[7]; // Bit 7 toggles every 128 cycles (approximates decimation/2)
+
+    echip_clk_generator echip65_clk_generator (    
+        .phi1(phi1), //input clk to modulator (5.12 MHz); non-overlapping with phi2 (level-sensitive)
+        .phi2(phi2), //input clk to modulator (5.12 MHz); non-overlapping with phi1 (level-sensitive)
+        .phi1F(phi1F), //input clk to digital filters (5.12 MHz); (edge-sensitive)
+        .sclk(sclk), //serial data clk, captures data for serializer (5.12 MHz); (edge-sensitive)
+       .clk(clk), //input 81.92M MHz high speed serializer clk
+        .enable(enable),
+        .rstn(reset_n)
+    );
+    // generated clk delays
+    always @(phi1) phi1_delayed <= #(PHI1_DELAY) phi1;
+    always @(phi2) phi2_delayed <= #(PHI2_DELAY) phi2;
+
+    //clks come up left right so for a row, min delay is on left edge, max delay on right edge (this is for V5 mainly, other versions have 1 clk pin input and clk tree takes care of below)
+    genvar m;
+    generate
+        // int k;
+        for (m=0; m<NUM_FILTERS; m=m+1) begin : PHI1FDELAY
+            always @(phi1F) phi1F_delayed[(m)] <= #(PHI1F_DELAY_MIN + (NUM_FILTERS-1-m)*PHI1F_DELAY_INTER) phi1F;
+        end
+    endgenerate
+
+    //mod input come from right side so for a row, min delay is on right edge, max delay on left edge
+    genvar n;
+    generate
+        // int k;
+        for (n=0; n<NUM_FILTERS; n=n+1) begin : MODDELAY
+            always @(modulator_outputs) mod_out_Delayed[(n)] <= #(FINPUT_DELAY_MIN + n*FINPUT_DELAY_INTER) modulator_outputs;
+        end
+    endgenerate
+
     //////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Stimulus Generator Instantiation
     cic3_64x4_stimulus_gen #(
-        .SDM_MODEL("sd_mod2")  // Select SDM model for testing, options: sdm_rnm(Carl's RTL model) or sd_mod2(Katerina's verilogA model)
+        .SDM_MODEL("bitstream_file"),  // Select SDM model for testing, options: sdm_rnm(Carl's RTL model) or sd_mod2(Katerina's verilogA model) 
+                                       //     or bitstream_file(virtuoso modulator output), when bitstream_file is selected, povide the txt file path
+        .BITSTREAM_FILE("../testbench/analog_data/sd_bitstream.txt")
     ) stimulus_gen_inst (
-        .clk                   (clk),
+        .clk                   (phi2), 
         .reset_n               (reset_n),
         .modulator_outputs     (modulator_outputs),
         .golden_modulator_out  (golden_modulator_out),
@@ -158,8 +202,8 @@ module cic3_64x4_selfcheck_tb();
         .out60_3(dut_outputs[60][3]), .out61_3(dut_outputs[61][3]), .out62_3(dut_outputs[62][3]), .out63_3(dut_outputs[63][3]),
         
         // Inputs
-        .in       (dut_inputs),
-        .clk      (clk),
+        .in       (dut_inputs), //JJ used delayed modulator outputs. Evaluate if this is needed. 
+        .clk      (phi1F), //JJ used delayed phy1f clk. Evaluate if this is needed. 
         .reset_n  (reset_n)
     );
     
@@ -170,7 +214,7 @@ module cic3_64x4_selfcheck_tb();
     ) golden_filter (
         .out      (golden_output),
         .in       (golden_modulator_out),
-        .clk      (clk),
+        .clk      (phi1F),
         .reset_n  (reset_n)
     );
 
@@ -180,12 +224,12 @@ module cic3_64x4_selfcheck_tb();
     cic3_adi_14b adi_golden_filter (
         .out      (adi_golden_output),
         .in       (golden_modulator_out),
-        .clk      (clk),
+        .clk      (phi1F),
         .reset_n  (reset_n)
     );
     // Scoreboard Instantiation
     cic3_64x4_scoreboard scoreboard (
-        .clk             (divided_clk),  // divided clock for decimated rate checking
+        .clk             (divided_clk),  
         .reset_n         (reset_n),
         .enable          (scoreboard_enable),
         .dut_outputs     (dut_outputs),
@@ -199,9 +243,12 @@ module cic3_64x4_selfcheck_tb();
         clk = 0;
         reset_n = 0;
         scoreboard_enable = 0;
+        enable = 0;
         
         // Display test header
         display_test_header();
+        delay_ns(10); 
+        enable = 1;
         
         // Apply reset
         apply_reset_sequence(reset_n, 100);
@@ -226,7 +273,7 @@ module cic3_64x4_selfcheck_tb();
     
     // Timeout watchdog
     initial begin
-        #(TEST_DURATION_SAMPLES * DECIMATION_FACTOR * CLK_PERIOD_NS * 3);
+        #(TEST_DURATION_SAMPLES * DECIMATION_FACTOR * CLK_PERIOD_NS * 9);
         $display("[WARNING] Test timeout reached");
         display_test_summary(stats);
         $finish;

@@ -116,6 +116,12 @@ task automatic wait_for_settling(
     $display("[INFO] @%0t: Settling complete", $time);
 endtask
 
+task automatic delay_ns(
+    input int delay_ns
+);
+    #(delay_ns);    
+endtask
+
 // Task: display_progress
 // Display periodic progress updates
 task automatic display_progress(
