@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+# Generated using AI model claude-sonnet-high
 # Configuration - matches ADMS SDM clock
 SDM_CLK_PERIOD_NS = 195.312  # 5.12 MHz
 INPUT_FILE = 'modulator_output_dig.csv'
