@@ -15,6 +15,9 @@
 //   IS NOT PARAMETERIZED
 //   JJ (03/06/25): added in parametrization
 //   JJ (01/12/26): only bringing out 14 bits of the 25-bit output
+//   TP (02/24/26): converted all internal datapath signals (acc*, diff*, in_coded) to
+//                 'signed' with explicit signed'() casts on arithmetic ops.
+//                 Added out_signed intermediate signal. 
 ///////////////////////////////////////////////////////////////////
 
 module cic3_echip65_14b
@@ -26,16 +29,17 @@ module cic3_echip65_14b
     input logic clk, // high-speed modulator clk
     input logic reset_n); // asynchronous digital reset (active low)
 
-logic [NUMBITS-1:0] in_coded; // input coded to 25-bit two's complement
-logic [NUMBITS-1:0] acc1;
-logic [NUMBITS-1:0] acc2;
-logic [NUMBITS-1:0] acc3;
-logic [NUMBITS-1:0] acc3_d;
-logic [NUMBITS-1:0] diff1;
-logic [NUMBITS-1:0] diff2;
-logic [NUMBITS-1:0] diff3;
-logic [NUMBITS-1:0] diff1_d;
-logic [NUMBITS-1:0] diff2_d;
+logic signed [NUMBITS-1:0] in_coded; // input coded to 25-bit two's complement
+logic signed [NUMBITS-1:0] acc1;
+logic signed [NUMBITS-1:0] acc2;
+logic signed [NUMBITS-1:0] acc3;
+logic signed [NUMBITS-1:0] acc3_d;
+logic signed [NUMBITS-1:0] diff1;
+logic signed [NUMBITS-1:0] diff2;
+logic signed [NUMBITS-1:0] diff3;
+logic signed [NUMBITS-1:0] diff1_d;
+logic signed [NUMBITS-1:0] diff2_d;
+logic signed [14-1:0] out_signed; // 14-bit signed output from CIC filter
 logic [CLOCK_WIDTH-1:0] clock_counter; // 256 decimation ratio
 logic divided_clk;
 
@@ -56,13 +60,13 @@ differentiators update on posedge of divided_clk (which aligns with negedge of c
 End result: update of integrators and the downsampling + update of differentiators are seperated by 1/2 fast input filter clk period
 */
 
-//JJ (01/12/26): b/c of assignment to 0 instead of -1, not actually 2's complement encoding!
-// 2's complement encoder
+// 2's complement encoder: sigma-delta bit 1 -> +1, bit 0 -> -1
 always_comb begin : coder
-    if (in) 
-        in_coded = 1;
+    if (in)
+        in_coded = {{(NUMBITS-1){1'b0}}, 1'b1};   // +1 signed
     else
-        in_coded = 0;
+        in_coded = {(NUMBITS){1'b1}};              // -1 signed (all 1s in two's complement)
+        //in_coded = {(NUMBITS){1'b0}};            // 0, testing
 end // always_comb
 
 // clock assignment
@@ -78,9 +82,9 @@ always_ff @ (posedge clk or negedge reset_n) begin
         acc3 <= 'b0; 
     end 
     else begin
-        acc1 <= acc1 + in_coded; 
-        acc2 <= acc2 + acc1; 
-        acc3 <= acc3 + acc2;  
+        acc1 <= signed'(acc1 + in_coded); 
+        acc2 <= signed'(acc2 + acc1); 
+        acc3 <= signed'(acc3 + acc2);  
     end
 end // always_ff
 
@@ -96,10 +100,10 @@ always_ff @ (posedge divided_clk or negedge reset_n) begin
         diff3 <= 'b0;
     end 
     else begin 
-        diff1 <= acc3 - acc3_d; 
-        diff2 <= diff1 - diff1_d; 
-        diff3 <= diff2 - diff2_d; 
-        acc3_d <= acc3; 
+        diff1 <= signed'(acc3 - acc3_d); 
+        diff2 <= signed'(diff1 - diff1_d); 
+        diff3 <= signed'(diff2 - diff2_d); 
+        acc3_d <=  acc3; 
         diff1_d <= diff1; 
         diff2_d <= diff2; 
     end
@@ -111,11 +115,11 @@ end // always_ff
 //always_ff @ (posedge divided_clk or negedge reset_n) begin
 always_ff @ (negedge divided_clk or negedge reset_n) begin
     if (!reset_n) begin  
-        out <= 'b0;
+        out_signed <= 'b0;
     end
     else begin
         //explicit 14-bit assignment from 25-bit diff3, not using overflow bit, diff3[24]
-        out[13] <= diff3[23];
+        /*out[13] <= diff3[23];
         out[12] <= diff3[22];
         out[11] <= diff3[21];
         out[10] <= diff3[20];
@@ -128,9 +132,16 @@ always_ff @ (negedge divided_clk or negedge reset_n) begin
         out[3] <= diff3[13];
         out[2] <= diff3[12];
         out[1] <= diff3[11];
-        out[0] <= diff3[10];
+        out[0] <= diff3[10];*/
+        out_signed <= diff3[24:11];
     end
 end // always_ff
+
+// Convert two's complement (signed) to offset binary (unsigned).
+//   -8192  (14'h2000) ->  0       (most negative maps to 0)
+//    0     (14'h0000) ->  8192    (zero maps to midscale)
+//   +8191  (14'h1FFF) ->  16383   (most positive maps to full-scale)
+assign out = out_signed ^ (1'b1 << (14-1));
 
 // timing and output logic
 // always_ff @ (posedge clk or negedge reset_n) begin
