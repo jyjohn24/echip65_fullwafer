@@ -10,7 +10,7 @@ import cic3_64x4_test_pkg::*;
 
 module cic3_64x4_stimulus_gen #(
     parameter string SDM_MODEL = "sd_mod2",  // Options: "sd_mod2", "sdm_rnm", or "bitstream_file"
-    parameter string BITSTREAM_FILE = "testbench/analog_data/sd_bitstream.txt"  // File path for bitstream_file mode
+    parameter string BITSTREAM_FILE = "../testbench/analog_data/sd_bitstream.txt"  // File path for bitstream_file mode
 )(
     input  logic                      clk,
     input  logic                      reset_n,
