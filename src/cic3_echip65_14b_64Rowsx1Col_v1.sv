@@ -84,6 +84,8 @@ output logic [(14-1):0] out61,
 output logic [(14-1):0] out62, 
 output logic [(14-1):0] out63, 
 input logic [(NUM_FILTERS_PERCOLUMN*NUM_COLUMNS-1):0] in, //will be seperate modulator inputs (clocked on modulator clk)
+input logic cfg_sel_outFormat, // global config bit to select output format (0: offset binary, 1: two's complement)
+input logic cfg_sel_outBits, // global config bit to select output format (0: take bits 24:11, 1: take bits 23:10)
 input logic clk, //common "high speed" filter clk (same frequency, adjustable phase as modulator clk)
 input logic reset_n // common async. reset active low
 );
@@ -194,6 +196,8 @@ generate
             cic3_echip65_14b (
                 .out                    (out_int[(j+1)*14-1:j*14]), //14-bit digital output for filter
                 .in                     (inC0[j]),
+                .cfg_sel_outFormat      (cfg_sel_outFormat),
+                .cfg_sel_outBits        (cfg_sel_outBits),
                 .clk                    (clk),
                 .reset_n                (reset_n)
             );

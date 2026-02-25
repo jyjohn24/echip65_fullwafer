@@ -17,7 +17,9 @@
 //   JJ (01/12/26): only bringing out 14 bits of the 25-bit output
 //   TP (02/24/26): converted all internal datapath signals (acc*, diff*, in_coded) to
 //                 'signed' with explicit signed'() casts on arithmetic ops.
-//                 Added out_signed intermediate signal. 
+//                 Added out_signed intermediate signal.
+//   JJ (02/25/26): Adding in two configuration bits (for selecting output word format 
+//                 and for selecting which 14-bits to take out) 
 ///////////////////////////////////////////////////////////////////
 
 module cic3_echip65_14b
@@ -26,6 +28,8 @@ module cic3_echip65_14b
     parameter NUMBITS = 3*CLOCK_WIDTH+1)
     (output logic [14-1:0] out, // filtered output (14-bits)
     input logic in, // single bit from sigma-delta modulator
+    input logic cfg_sel_outFormat, // config bit to select output format (0: offset binary, 1: two's complement)
+    input logic cfg_sel_outBits, // config bit to select output format (0: take bits 24:11, 1: take bits 23:10)
     input logic clk, // high-speed modulator clk
     input logic reset_n); // asynchronous digital reset (active low)
 
@@ -118,7 +122,7 @@ always_ff @ (negedge divided_clk or negedge reset_n) begin
         out_signed <= 'b0;
     end
     else begin
-        //explicit 14-bit assignment from 25-bit diff3, not using overflow bit, diff3[24]
+        //explicit 14-bit assignment from 25-bit diff3 w/ config. bit to select which 14 bits to take out
         /*out[13] <= diff3[23];
         out[12] <= diff3[22];
         out[11] <= diff3[21];
@@ -133,7 +137,10 @@ always_ff @ (negedge divided_clk or negedge reset_n) begin
         out[2] <= diff3[12];
         out[1] <= diff3[11];
         out[0] <= diff3[10];*/
-        out_signed <= diff3[24:11];
+        if (cfg_sel_outBits)
+            out_signed <= diff3[23:10];
+        else
+            out_signed <= diff3[24:11];
     end
 end // always_ff
 
@@ -141,7 +148,13 @@ end // always_ff
 //   -8192  (14'h2000) ->  0       (most negative maps to 0)
 //    0     (14'h0000) ->  8192    (zero maps to midscale)
 //   +8191  (14'h1FFF) ->  16383   (most positive maps to full-scale)
-assign out = out_signed ^ (1'b1 << (14-1));
+/*
+JJ: Adding in cfg bit to select output format (offset binary vs two's complement).
+    out is declared as logic (unsigned) but is being assigned either out_signed (logic signed) 
+    or out_signed ^ (1'b1 << (14-1)) (logic unsigned) --> since we are not doing any arithmetic with this output, 
+    we can keep declaration as logic and just make sure to interpret the bits appropriately on the receiving end.
+*/
+assign out = cfg_sel_outFormat ? out_signed : (out_signed ^ (1'b1 << (14-1)));
 
 // timing and output logic
 // always_ff @ (posedge clk or negedge reset_n) begin
