@@ -54,6 +54,7 @@ module cic3_64x4_selfcheck_tb();
     logic phi1F;
     logic [(NUM_FILTERS-1):0] phi1F_delayed;
     logic sclk;
+    logic cfg_sel_outBits;
 
 
     // Include task library
@@ -202,6 +203,7 @@ module cic3_64x4_selfcheck_tb();
         .out60_3(dut_outputs[60][3]), .out61_3(dut_outputs[61][3]), .out62_3(dut_outputs[62][3]), .out63_3(dut_outputs[63][3]),
         
         // Inputs
+        .cfg_sel_outBits (cfg_sel_outBits), // global config bit to select output format (0: take bits 24:11, 1: take bits 23:10)
         .in       (dut_inputs), //JJ used delayed modulator outputs. Evaluate if this is needed. 
         .clk      (phi1F), //JJ used delayed phy1f clk. Evaluate if this is needed. 
         .reset_n  (reset_n)
@@ -214,6 +216,7 @@ module cic3_64x4_selfcheck_tb();
     ) golden_filter (
         .out      (golden_output),
         .in       (golden_modulator_out),
+        .cfg_sel_outBits (cfg_sel_outBits), 
         .clk      (phi1F),
         .reset_n  (reset_n)
     );
@@ -244,7 +247,7 @@ module cic3_64x4_selfcheck_tb();
         reset_n = 0;
         scoreboard_enable = 0;
         enable = 0;
-        
+        cfg_sel_outBits = 1; // Set output bits selection (0: take bits 24:11, 1: take bits 23:10)
         // Display test header
         display_test_header();
         delay_ns(10); 

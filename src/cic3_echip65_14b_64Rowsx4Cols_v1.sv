@@ -12,6 +12,7 @@ JJ (03/06/25): keeping same module name for the moment for iterating through imp
 JJ (03/13/25): creating 24 sets of 25-bit filter outputs to make association of outputs w/ filter instances explicit
 JJ (01/12/26): updating to use cic3_echip65_14b.sv as root src code (14-bit output version) and an array of 64x4 filters
 JJ (02/25/26): updating to add in two (global) cfg bits
+TP (03/03/26): removed the config bit for selecting the output format
 */
 
 module cic3_echip65_14b_64Rowsx4Cols
@@ -277,7 +278,6 @@ output logic [(14-1):0] out63_1,
 output logic [(14-1):0] out63_2, 
 output logic [(14-1):0] out63_3,
 input logic [(NUM_FILTERS_PERCOLUMN*NUM_COLUMNS-1):0] in, // will be seperate modulator inputs (clocked on modulator clk)
-input logic cfg_sel_outFormat, // global config bit to select output format (0: offset binary, 1: two's complement)
 input logic cfg_sel_outBits, // global config bit to select output format (0: take bits 24:11, 1: take bits 23:10)
 input logic clk, //common "high speed" filter clk (same frequency, adjustable phase as modulator clk)
 input logic reset_n // common async. reset active low
@@ -591,7 +591,6 @@ generate
             cic3_echip65_14b (
                 .out                    (out_int_C1[(j+1)*14-1:j*14]), //14-bit digital output for filter
                 .in                     (inC0[j]),
-                .cfg_sel_outFormat      (cfg_sel_outFormat),
                 .cfg_sel_outBits        (cfg_sel_outBits),
                 .clk                    (clk),
                 .reset_n                (reset_n)
@@ -606,7 +605,6 @@ generate
             cic3_echip65_14b (
                 .out                    (out_int_C2[(l+1)*14-1:l*14]), //14-bit digital output for filter
                 .in                     (inC1[l]),
-                .cfg_sel_outFormat      (cfg_sel_outFormat),
                 .cfg_sel_outBits        (cfg_sel_outBits),
                 .clk                    (clk),
                 .reset_n                (reset_n)
@@ -621,7 +619,6 @@ generate
             cic3_echip65_14b (
                 .out                    (out_int_C3[(m+1)*14-1:m*14]), //14-bit digital output for filter
                 .in                     (inC2[m]),
-                .cfg_sel_outFormat      (cfg_sel_outFormat),
                 .cfg_sel_outBits        (cfg_sel_outBits),
                 .clk                    (clk),
                 .reset_n                (reset_n)
@@ -636,7 +633,6 @@ generate
             cic3_echip65_14b (
                 .out                    (out_int_C4[(n+1)*14-1:n*14]), //14-bit digital output for filter
                 .in                     (inC3[n]),
-                .cfg_sel_outFormat      (cfg_sel_outFormat),
                 .cfg_sel_outBits        (cfg_sel_outBits),
                 .clk                    (clk),
                 .reset_n                (reset_n)

@@ -18,33 +18,32 @@
 //   TP (02/24/26): converted all internal datapath signals (acc*, diff*, in_coded) to
 //                 'signed' with explicit signed'() casts on arithmetic ops.
 //                 Added out_signed intermediate signal.
-//   JJ (02/25/26): Adding in two configuration bits (for selecting output word format
-//                 and for selecting which 14-bits to take out)
-//   TP (03/03/26): Changed input encoding from 2s complement back to offset binary (undid the change from 02/24/26)
-//                  and removed config bit for selecting output word format
+//   JJ (02/25/26): Adding in two configuration bits (for selecting output word format 
+//                 and for selecting which 14-bits to take out) 
 ///////////////////////////////////////////////////////////////////
 
-module cic3_echip65_14b
+module cic3_echip65_14b_signed
     #(parameter DECIMATION_FACTOR = 256, // default D = 256
     parameter CLOCK_WIDTH = $clog2(DECIMATION_FACTOR),
     parameter NUMBITS = 3*CLOCK_WIDTH+1)
     (output logic [14-1:0] out, // filtered output (14-bits)
     input logic in, // single bit from sigma-delta modulator
+    input logic cfg_sel_outFormat, // config bit to select output format (0: offset binary, 1: two's complement)
     input logic cfg_sel_outBits, // config bit to select output format (0: take bits 24:11, 1: take bits 23:10)
     input logic clk, // high-speed modulator clk
     input logic reset_n); // asynchronous digital reset (active low)
 
-logic [NUMBITS-1:0] in_coded; // input coded to 25-bit offset binary
-logic [NUMBITS-1:0] acc1;
-logic [NUMBITS-1:0] acc2;
-logic [NUMBITS-1:0] acc3;
-logic [NUMBITS-1:0] acc3_d;
-logic [NUMBITS-1:0] diff1;
-logic [NUMBITS-1:0] diff2;
-logic [NUMBITS-1:0] diff3;
-logic [NUMBITS-1:0] diff1_d;
-logic [NUMBITS-1:0] diff2_d;
-logic [14-1:0] out_unsigned; // 14-bit offset binary output from CIC filter
+logic signed [NUMBITS-1:0] in_coded; // input coded to 25-bit two's complement
+logic signed [NUMBITS-1:0] acc1;
+logic signed [NUMBITS-1:0] acc2;
+logic signed [NUMBITS-1:0] acc3;
+logic signed [NUMBITS-1:0] acc3_d;
+logic signed [NUMBITS-1:0] diff1;
+logic signed [NUMBITS-1:0] diff2;
+logic signed [NUMBITS-1:0] diff3;
+logic signed [NUMBITS-1:0] diff1_d;
+logic signed [NUMBITS-1:0] diff2_d;
+logic signed [14-1:0] out_signed; // 14-bit signed output from CIC filter
 logic [CLOCK_WIDTH-1:0] clock_counter; // 256 decimation ratio
 logic divided_clk;
 
@@ -65,12 +64,13 @@ differentiators update on posedge of divided_clk (which aligns with negedge of c
 End result: update of integrators and the downsampling + update of differentiators are seperated by 1/2 fast input filter clk period
 */
 
-// Offset binary encoder: sigma-delta bit 1 -> +1, bit 0 -> 0
+// 2's complement encoder: sigma-delta bit 1 -> +1, bit 0 -> -1
 always_comb begin : coder
     if (in)
-        in_coded = {{(NUMBITS-1){1'b0}}, 1'b1};   // 1 unsigned (00000.....0001)
+        in_coded = {{(NUMBITS-1){1'b0}}, 1'b1};   // +1 signed
     else
-        in_coded = {(NUMBITS){1'b0}};            // 0, (00000.....0000)
+        in_coded = {(NUMBITS){1'b1}};              // -1 signed (all 1s in two's complement)
+        //in_coded = {(NUMBITS){1'b0}};            // 0, testing
 end // always_comb
 
 // clock assignment
@@ -86,9 +86,9 @@ always_ff @ (posedge clk or negedge reset_n) begin
         acc3 <= 'b0; 
     end 
     else begin
-        acc1 <= acc1 + in_coded; 
-        acc2 <= acc2 + acc1; 
-        acc3 <= acc3 + acc2;  
+        acc1 <= signed'(acc1 + in_coded); 
+        acc2 <= signed'(acc2 + acc1); 
+        acc3 <= signed'(acc3 + acc2);  
     end
 end // always_ff
 
@@ -104,9 +104,9 @@ always_ff @ (posedge divided_clk or negedge reset_n) begin
         diff3 <= 'b0;
     end 
     else begin 
-        diff1 <= acc3 - acc3_d; 
-        diff2 <= diff1 - diff1_d; 
-        diff3 <= diff2 - diff2_d; 
+        diff1 <= signed'(acc3 - acc3_d); 
+        diff2 <= signed'(diff1 - diff1_d); 
+        diff3 <= signed'(diff2 - diff2_d); 
         acc3_d <=  acc3; 
         diff1_d <= diff1; 
         diff2_d <= diff2; 
@@ -119,7 +119,7 @@ end // always_ff
 //always_ff @ (posedge divided_clk or negedge reset_n) begin
 always_ff @ (negedge divided_clk or negedge reset_n) begin
     if (!reset_n) begin  
-        out_unsigned <= 'b0;
+        out_signed <= 'b0;
     end
     else begin
         //explicit 14-bit assignment from 25-bit diff3 w/ config. bit to select which 14 bits to take out
@@ -138,18 +138,23 @@ always_ff @ (negedge divided_clk or negedge reset_n) begin
         out[1] <= diff3[11];
         out[0] <= diff3[10];*/
         if (cfg_sel_outBits)
-            out_unsigned <= diff3[23:10];
+            out_signed <= diff3[23:10];
         else
-            out_unsigned <= diff3[24:11];
+            out_signed <= diff3[24:11];
     end
 end // always_ff
 
-// Data is in offset binary
-//    0     (14'h0000) ->  0       (min scale)
-//    8192  (14'h2000) ->  8192    (mid scale)
-//   16383  (14'h3FFF) ->  16383   (full scale)
-
-assign out = out_unsigned;
+// Convert two's complement (signed) to offset binary (unsigned).
+//   -8192  (14'h2000) ->  0       (most negative maps to 0)
+//    0     (14'h0000) ->  8192    (zero maps to midscale)
+//   +8191  (14'h1FFF) ->  16383   (most positive maps to full-scale)
+/*
+JJ: Adding in cfg bit to select output format (offset binary vs two's complement).
+    out is declared as logic (unsigned) but is being assigned either out_signed (logic signed) 
+    or out_signed ^ (1'b1 << (14-1)) (logic unsigned) --> since we are not doing any arithmetic with this output, 
+    we can keep declaration as logic and just make sure to interpret the bits appropriately on the receiving end.
+*/
+assign out = cfg_sel_outFormat ? out_signed : (out_signed ^ (1'b1 << (14-1)));
 
 // timing and output logic
 // always_ff @ (posedge clk or negedge reset_n) begin
