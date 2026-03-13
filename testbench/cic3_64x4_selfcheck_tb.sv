@@ -126,10 +126,13 @@ module cic3_64x4_selfcheck_tb();
     assign dut_inputs = modulator_outputs;
     
     // Instantiate the 64x4 filter array
-    cic3_echip65_14b_64Rowsx4Cols #(
-        .NUM_FILTERS_PERCOLUMN(NUM_ROWS),
-        .NUM_COLUMNS(NUM_COLS)
-    ) dut (
+
+    //for SDF simualtons we dont need 
+    //cic3_echip65_14b_64Rowsx4Cols #(
+    //    .NUM_FILTERS_PERCOLUMN(NUM_ROWS),
+    //    .NUM_COLUMNS(NUM_COLS)
+    //) dut (
+    cic3_echip65_14b_64Rowsx4Cols dut (
         // Column 0 outputs //NOTE: Generated using AI Agent
         .out0_0(dut_outputs[0][0]),   .out1_0(dut_outputs[1][0]),   .out2_0(dut_outputs[2][0]),   .out3_0(dut_outputs[3][0]),
         .out4_0(dut_outputs[4][0]),   .out5_0(dut_outputs[5][0]),   .out6_0(dut_outputs[6][0]),   .out7_0(dut_outputs[7][0]),
@@ -211,7 +214,7 @@ module cic3_64x4_selfcheck_tb();
     
     // Golden Reference Model
     // Instantiate one golden reference filter
-    cic3_echip65_14b #(
+    cic3_echip65_14b_golden #(
         .DECIMATION_FACTOR(DECIMATION_FACTOR)
     ) golden_filter (
         .out      (golden_output),

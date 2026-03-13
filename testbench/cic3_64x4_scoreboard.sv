@@ -26,22 +26,7 @@ module cic3_64x4_scoreboard (
     `include "tasks/cic3_64x4_checker_functions.sv"
     
     // Initialization
-    initial begin
-        stats.total_checks = 0;
-        stats.total_errors = 0;
-        stats.output_sample_count = 0;
-        stats.test_passed = 0;
-        test_complete = 0;
-        checking_enabled = 0;
-        
-        // Initialize error counters and flags
-        for (int i = 0; i < NUM_ROWS; i++) begin
-            for (int j = 0; j < NUM_COLS; j++) begin
-                stats.error_count[i][j] = 0;
-                first_error_reported[i][j] = 0;
-            end
-        end
-    end
+    // Initialization removed; reset handled in always_ff
     
     // Enable Control
     always_ff @(posedge clk or negedge reset_n) begin
@@ -78,30 +63,36 @@ module cic3_64x4_scoreboard (
         end
     endtask
     
-    // Checking Process
-    always_ff @(posedge clk) begin
-        if (reset_n && checking_enabled) begin
-            check_all_outputs();
-            stats.output_sample_count++;
-            
-            // Display progress periodically
-            if (stats.total_checks % 100 == 0) begin
-                $display("[INFO] @%0t: Completed %0d output checks, Total Errors=%0d", 
-                         $time, stats.total_checks, stats.total_errors);
+    // Checking Process with reset and test completion
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            // Reset internal registers
+            test_complete <= 0;
+            stats.total_checks <= 0;
+            stats.total_errors <= 0;
+            stats.output_sample_count <= 0;
+            stats.test_passed <= 0;
+            // Reset error counters and flags
+            for (int i = 0; i < NUM_ROWS; i++) begin
+                for (int j = 0; j < NUM_COLS; j++) begin
+                    stats.error_count[i][j] <= 0;
+                    first_error_reported[i][j] <= 0;
+                end
             end
-            
-            // Check if test duration reached
-            if (stats.output_sample_count >= TEST_DURATION_SAMPLES) begin
-                test_complete = 1;
+        end else begin
+            if (checking_enabled) begin
+                check_all_outputs();
+                stats.output_sample_count <= stats.output_sample_count + 1;
+                // Display progress periodically
+                if (stats.total_checks % 100 == 0) begin
+                    $display("[INFO] @%0t: Completed %0d output checks, Total Errors=%0d", $time, stats.total_checks, stats.total_errors);
+                end
+                // Check if test duration reached
+                if (stats.output_sample_count >= TEST_DURATION_SAMPLES) begin
+                    test_complete <= 1;
+                    stats.test_passed <= (stats.total_errors == 0);
+                end
             end
-        end
-    end
-    
-    // Test Completion Logic
-    always_ff @(posedge test_complete) begin
-        if (test_complete) begin
-            // Set pass/fail status
-            stats.test_passed = (stats.total_errors == 0);
         end
     end
 
