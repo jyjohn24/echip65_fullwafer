@@ -23,6 +23,7 @@ module cic3_64x4_selfcheck_tb();
     // Clock & Reset
     logic clk;
     logic reset_n;
+    logic clk_reset_n;
     
     // Stimulus signals
     real  sine_input;
@@ -81,7 +82,7 @@ module cic3_64x4_selfcheck_tb();
         .sclk(sclk), //serial data clk, captures data for serializer (5.12 MHz); (edge-sensitive)
        .clk(clk), //input 81.92M MHz high speed serializer clk
         .enable(enable),
-        .rstn(reset_n)
+        .rstn(clk_reset_n)
     );
     // generated clk delays
     always @(phi1) phi1_delayed <= #(PHI1_DELAY) phi1;
@@ -257,7 +258,11 @@ module cic3_64x4_selfcheck_tb();
         delay_ns(10); 
         enable = 1;
         
+        // Apply clock reset
+        apply_reset_sequence(clk_reset_n, 100);
         // Apply reset
+        @(negedge phi2);
+        #2;
         apply_reset_sequence(reset_n, 100);
         
         // Wait for settling time
