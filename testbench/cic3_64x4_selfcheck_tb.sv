@@ -124,14 +124,15 @@ module cic3_64x4_selfcheck_tb();
     // Map modulator_outputs to DUT input
     logic [NUM_FILTERS-1:0] dut_inputs;
     assign dut_inputs = modulator_outputs;
-    
-    // Instantiate the 64x4 filter array
 
-    //for SDF simualtons we dont need 
-    //cic3_echip65_14b_64Rowsx4Cols #(
-    //    .NUM_FILTERS_PERCOLUMN(NUM_ROWS),
-    //    .NUM_COLUMNS(NUM_COLS)
-    //) dut (
+    // Instantiate the 64x4 filter array
+    // --------------------------------------------------
+    // For SDF simulations, the parameter block below is excluded because
+    // the post-PnR DUT does not have these parameters.
+    // For RTL simulations, pass the following parameters to the DUT:
+    //   .NUM_FILTERS_PERCOLUMN(NUM_ROWS),
+    //   .NUM_COLUMNS(NUM_COLS)
+    // --------------------------------------------------
     cic3_echip65_14b_64Rowsx4Cols dut (
         // Column 0 outputs //NOTE: Generated using AI Agent
         .out0_0(dut_outputs[0][0]),   .out1_0(dut_outputs[1][0]),   .out2_0(dut_outputs[2][0]),   .out3_0(dut_outputs[3][0]),

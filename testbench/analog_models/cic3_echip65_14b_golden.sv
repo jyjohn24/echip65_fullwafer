@@ -23,6 +23,10 @@
 //   TP (03/03/26): Changed input encoding from 2s complement back to offset binary (undid the change from 02/24/26)
 //                  and removed config bit for selecting output word format
 ///////////////////////////////////////////////////////////////////
+// Note (TP): This is a "golden" reference model intended for use in testbench checking.
+//       The fiunctionality of this model should be same as /src/cic3_echip65_14b_simple.sv
+//       Update this file when updates are made to the cic3_echip65_14b_simple.sv
+///////////////////////////////////////////////////////////////////
 
 module cic3_echip65_14b_golden
     #(parameter DECIMATION_FACTOR = 256, // default D = 256
