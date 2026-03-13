@@ -9,15 +9,16 @@ vlib work
 
 # Compile source files
 echo "Compiling source files..."
-vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/testbench/analog_models/sine_wave.sv
-vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/testbench/analog_models/sdm_rnm.sv
 vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/src/cic3_echip65_14b_simple.sv
 vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/src/cic3_echip65_14b_64Rowsx4Cols_v1.sv
 
 
 # Compile testbench - Modular components in correct order
 vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/testbench/analog_models/shift_reg.sv
+vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/testbench/analog_models/sine_wave.sv
 vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/testbench/analog_models/echip_clk_generator.sv
+vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/testbench/analog_models/sdm_rnm.sv
+vlog -sv ../testbench/analog_models/cic3_echip65_14b_golden.sv
 echo "Compiling adi code"
 vlog -sv /home/lxusers/t/tprakash/IC_DESIGN/GIT_CODE/echip65_WaferRun/echip65_fullwafer/testbench/analog_models/cic3_adi_14b.sv
 echo "Compiling sd_mod2"
