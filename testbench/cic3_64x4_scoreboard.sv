@@ -85,7 +85,7 @@ module cic3_64x4_scoreboard (
                 stats.output_sample_count <= stats.output_sample_count + 1;
                 // Display progress periodically
                 if (stats.total_checks % 100 == 0) begin
-                    $display("[INFO] @%0t: Completed %0d output checks, Total Errors=%0d", $time, stats.total_checks, stats.total_errors);
+                    $display("[INFO] @%0t: Completed %0d percent output checks, Total Errors=%0d", $time, stats.total_checks, stats.total_errors);
                 end
                 // Check if test duration reached
                 if (stats.output_sample_count >= TEST_DURATION_SAMPLES) begin
